@@ -1,0 +1,44 @@
+name: Gerar APK Equipe Iturama
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar arquivos
+        uses: actions/checkout@v4
+
+      - name: Preparar projeto
+        run: |
+          unzip -q equipe_iturama_app_v2-1.zip -d /tmp/app
+          cp -r /tmp/app/equipe_iturama_app/* .
+          rm -rf /tmp/app
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar SDK
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Dar permissão ao Gradle
+        run: chmod +x gradlew
+
+      - name: Gerar APK
+        run: ./gradlew assembleDebug
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: equipe-iturama-apk
+          path: app/build/outputs/apk/debug/app-debug.apk

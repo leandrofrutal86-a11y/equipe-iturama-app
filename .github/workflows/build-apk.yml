@@ -11,21 +11,19 @@ jobs:
       - name: Baixar arquivos
         uses: actions/checkout@v4
 
-      - name: Preparar projeto
+      - name: Extrair projeto
         run: |
           unzip -q equipe_iturama_app_v2-1.zip
-          echo "Procurando gradlew..."
-          GRADLEW=$(find . -type f -name gradlew | head -n 1)
 
-          if [ -z "$GRADLEW" ]; then
-            echo "ERRO: gradlew não encontrado!"
-            find . -maxdepth 3 -type f | head -100
+          PROJECT_DIR=$(find . -type f -name settings.gradle | head -n 1 | xargs dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Projeto não encontrado"
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$GRADLEW")
           echo "Projeto encontrado em: $PROJECT_DIR"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Configurar Java
         uses: actions/setup-java@v4
@@ -38,20 +36,22 @@ jobs:
 
       - name: Instalar SDK
         run: |
-          sdkmanager --licenses <<< "y" || true
+          yes | sdkmanager --licenses || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Dar permissão ao Gradle
-        run: |
-          chmod +x "$PROJECT_DIR/gradlew"
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
 
       - name: Gerar APK
         run: |
           cd "$PROJECT_DIR"
-          ./gradlew assembleDebug
+          gradle :app:assembleDebug --no-daemon --stacktrace
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
           name: equipe-iturama-apk
           path: "**/app/build/outputs/apk/debug/app-debug.apk"
+          if-no-files-found: error
